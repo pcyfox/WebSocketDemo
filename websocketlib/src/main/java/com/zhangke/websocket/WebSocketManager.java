@@ -1,6 +1,7 @@
 package com.zhangke.websocket;
 
 import android.text.TextUtils;
+import android.util.Log;
 
 import com.zhangke.websocket.dispatcher.MainThreadResponseDelivery;
 import com.zhangke.websocket.dispatcher.ResponseDelivery;
@@ -234,6 +235,10 @@ public class WebSocketManager {
      * {@link #removeListener(SocketListener)} 方法移除监听器
      */
     public WebSocketManager addListener(SocketListener listener) {
+        if (mDelivery == null) {
+            Log.d(TAG, "addListener() fail cause: mDelivery= [" + null + "]");
+            return this;
+        }
         mDelivery.addListener(listener);
         return this;
     }

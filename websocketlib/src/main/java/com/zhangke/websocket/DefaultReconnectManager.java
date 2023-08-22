@@ -42,8 +42,7 @@ public class DefaultReconnectManager implements ReconnectManager {
 
     private final ExecutorService singleThreadPool = Executors.newSingleThreadExecutor();
 
-    public DefaultReconnectManager(WebSocketManager webSocketManager,
-                                   OnConnectListener onDisconnectListener) {
+    public DefaultReconnectManager(WebSocketManager webSocketManager, OnConnectListener onDisconnectListener) {
         this.mWebSocketManager = webSocketManager;
         this.mOnDisconnectListener = onDisconnectListener;
         reconnecting = false;
@@ -79,47 +78,50 @@ public class DefaultReconnectManager implements ReconnectManager {
     private int finishCount = 1;
 
     private Runnable getReconnectRunnable() {
-        return new Runnable() {
-            @Override
-            public void run() {
-                if (destroyed || needStopReconnect) {
-                    reconnecting = false;
-                    return;
-                }
-                LogUtil.d(TAG, "开始重连:" + reconnectCount);
-                reconnectCount++;
-                reconnecting = true;
-                connected = false;
-                try {
-                    int count = mWebSocketManager.getSetting().getReconnectFrequency();
-                    for (int i = 0; i < count; i++) {
-                        LogUtil.i(TAG, String.format("第%s次重连", i + 1));
-                        mWebSocketManager.reconnectOnce();
-                        synchronized (BLOCK) {
-                            try {
-                                BLOCK.wait(mWebSocketManager.getSetting().getConnectTimeout());
-                                if (connected) {
-                                    LogUtil.i(TAG, "reconnectOnce success!");
-                                    mOnDisconnectListener.onConnected();
-                                    return;
-                                }
-                                if (needStopReconnect) {
-                                    break;
-                                }
-                            } catch (InterruptedException e) {
+        return () -> {
+            if (destroyed || needStopReconnect) {
+                reconnecting = false;
+                return;
+            }
+            LogUtil.d(TAG, "开始重连:" + reconnectCount);
+            reconnectCount++;
+            reconnecting = true;
+            connected = false;
+            try {
+                int timeout = mWebSocketManager.getSetting().getConnectTimeout();
+                int count = mWebSocketManager.getSetting().getReconnectFrequency();
+                for (int i = 0; i < count; i++) {
+                    LogUtil.i(TAG, String.format("第%s次重连", i + 1));
+                    mWebSocketManager.reconnectOnce();
+                    try {
+                        Thread.sleep(timeout);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    synchronized (BLOCK) {
+                        try {
+                            BLOCK.wait(timeout);
+                            if (connected) {
+                                LogUtil.i(TAG, "reconnectOnce success!");
+                                mOnDisconnectListener.onConnected();
+                                return;
+                            }
+                            if (needStopReconnect) {
                                 break;
                             }
+                        } catch (InterruptedException e) {
+                            break;
                         }
                     }
-                    //重连失败
-                    LogUtil.i(TAG, "reconnectOnce failed!");
-                    mOnDisconnectListener.onDisconnect();
-                } finally {
-                    LogUtil.d(TAG, "重连结束:" + finishCount);
-                    finishCount++;
-                    reconnecting = false;
-                    LogUtil.i(TAG, "reconnecting = false");
                 }
+                //重连失败
+                LogUtil.i(TAG, "reconnectOnce failed!");
+                mOnDisconnectListener.onDisconnect();
+            } finally {
+                LogUtil.d(TAG, "重连结束:" + finishCount);
+                finishCount++;
+                reconnecting = false;
+                LogUtil.i(TAG, "reconnecting = false");
             }
         };
     }

@@ -44,7 +44,7 @@ public class WebSocketHandler {
     /**
      * 通过 Map 存储 WSM 对象，以此支持多个连接
      */
-    private static Map<String, WebSocketManager> mWebSocketMap;
+    private static volatile Map<String, WebSocketManager> mWebSocketMap;
 
     private static Logable mLog;
 
@@ -72,6 +72,13 @@ public class WebSocketHandler {
             LogUtil.e(TAG, "Default WebSocketManager exists!do not start again!");
         }
         return defaultWebSocket;
+    }
+
+    public static void destroy() {
+        if (defaultWebSocket != null) {
+            defaultWebSocket.destroy();
+            defaultWebSocket = null;
+        }
     }
 
     /**

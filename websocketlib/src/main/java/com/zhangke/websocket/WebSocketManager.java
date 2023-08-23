@@ -327,8 +327,8 @@ public class WebSocketManager {
             @Override
             public void onDisconnect() {
                 LogUtil.i(TAG, "重连失败");
-                mSetting.getResponseDispatcher()
-                        .onDisconnect(mDelivery);
+                if (mDelivery == null) return;
+                mSetting.getResponseDispatcher().onDisconnect(mDelivery);
             }
         });
     }
@@ -343,8 +343,8 @@ public class WebSocketManager {
                 if (mReconnectManager != null) {
                     mReconnectManager.onConnected();
                 }
-                mSetting.getResponseDispatcher()
-                        .onConnected(mDelivery);
+                if (mDelivery == null) return;
+                mSetting.getResponseDispatcher().onConnected(mDelivery);
             }
 
             @Override
@@ -354,17 +354,23 @@ public class WebSocketManager {
                         mReconnectManager.reconnecting()) {
                     mReconnectManager.onConnectError(e);
                 }
-                mSetting.getResponseDispatcher()
-                        .onConnectFailed(e, mDelivery);
+
+                if (mDelivery == null) return;
+                mSetting.getResponseDispatcher().onConnectFailed(e, mDelivery);
             }
 
             @Override
             public void onDisconnect() {
-                mSetting.getResponseDispatcher()
-                        .onDisconnect(mDelivery);
+
+                if (mDelivery != null) {
+                    mSetting.getResponseDispatcher()
+                            .onDisconnect(mDelivery);
+                }
+
                 if (mReconnectManager != null &&
                         mReconnectManager.reconnecting()) {
                     if (disconnect) {
+                        if (mDelivery == null) return;
                         mSetting.getResponseDispatcher()
                                 .onDisconnect(mDelivery);
                     } else {
@@ -380,11 +386,13 @@ public class WebSocketManager {
                     }
                 }
             }
+
             @Override
             public void onSendDataError(Request request, int type, Throwable tr) {
                 ErrorResponse errorResponse = ResponseFactory.createErrorResponse();
                 errorResponse.init(request, type, tr);
                 if (mSetting.processDataOnBackground()) {
+                    if (mDelivery == null) return;
                     mResponseProcessEngine
                             .onSendDataError(errorResponse,
                                     mSetting.getResponseDispatcher(),
@@ -401,6 +409,7 @@ public class WebSocketManager {
 
             @Override
             public void onMessage(Response message) {
+                if (mDelivery == null) return;
                 if (mSetting.processDataOnBackground()) {
                     mResponseProcessEngine
                             .onMessageReceive(message,
